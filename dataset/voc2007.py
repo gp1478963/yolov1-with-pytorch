@@ -5,6 +5,9 @@ import pathlib
 import cv2
 import os
 
+CELL_SIZE = 1 / 7
+CELL_COUNT = 7
+
 
 class Voc2007Dataset(dataset.Dataset):
     def __init__(self, PASCAL_VOC=None, VOCtrainval=None, VOCtest=None, transform=None, target_transform=None,
@@ -25,8 +28,21 @@ class Voc2007Dataset(dataset.Dataset):
     def __getitem__(self, index):
         image_path = os.path.join(self.Voc, self.images[index])
         bounding_box, label = self.boxes[index], self.labels[index]
-        return image_path, bounding_box, label
+        image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+        height_original, width_original = image.shape[:2]
+        bounding_box = torch.Tensor(bounding_box)
+        bounding_box[:, [0, 2]] /= width_original
+        bounding_box[:, [1, 3]] /= height_original
 
+        if self.transform is not None:
+            for transform_fn in self.transform:
+                image = transform_fn(image)
+
+        if self.target_transform is not None:
+            for transform_fn in self.target_transform:
+                image, bounding_box, label = transform_fn(image, bounding_box, label)
+
+        return image, self.target_reshape(bounding_box, label)
 
     def __len__(self):
         return len(self.images)
@@ -52,3 +68,15 @@ class Voc2007Dataset(dataset.Dataset):
                 self.boxes[index].append(annotation['bbox'])
                 self.labels[index].append(annotation['category_id'])
 
+    def target_reshape(self, boxes, labels):
+        center_x, center_y = (boxes[:, 2] + boxes[:, 0]) / 2., (boxes[:, 3] + boxes[:, 1]) / 2.
+        print(center_x, '\t', center_y)
+        belong_cell_x = torch.tensor((center_x // CELL_SIZE), dtype=torch.long)
+        belong_cell_y = torch.tensor((center_y // CELL_SIZE), dtype=torch.long)
+
+        target = torch.zeros((CELL_COUNT, CELL_COUNT, 30), dtype=torch.float)
+        for c_x, c_y, label in zip(belong_cell_x, belong_cell_y, labels):
+            target[c_x, c_y, 4] = 1
+            target[c_x, c_y, 9] = 1
+            target[c_x, c_y, torch.tensor(label + 10, dtype=torch.long)] = 1
+        return target
