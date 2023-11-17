@@ -5,6 +5,7 @@ from dataset import image_target_transforms
 
 from torchvision import transforms
 from torch.utils.data import DataLoader
+
 # dataset_transforms = transforms.Compose([image_target_transforms.ImageStandardize()])
 dataset_transforms = [image_target_transforms.ImageResize(width=448, height=448), transforms.ToTensor()]
 target_dataset_transforms_l = [image_target_transforms.ImageNormalize()]
@@ -19,17 +20,12 @@ dataset_obj = voc2007.Voc2007Dataset(
     transform=dataset_transforms,
     target_transform=target_dataset_transforms_l)
 
-dataloader = DataLoader(dataset=dataset_obj, batch_size=batch_size, shuffle=False)
+dataloader = DataLoader(dataset=dataset_obj, batch_size=batch_size, shuffle=True)
 for epoch in range(epoch_count):
     for image, target in dataloader:
         # output = yolo_model.forward(image)
         # print(output)
         print(target)
-        break
-
-
-
-
 
 # a, b, c = dataset_obj.__getitem__(3)
 

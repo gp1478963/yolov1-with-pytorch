@@ -70,13 +70,25 @@ class Voc2007Dataset(dataset.Dataset):
 
     def target_reshape(self, boxes, labels):
         center_x, center_y = (boxes[:, 2] + boxes[:, 0]) / 2., (boxes[:, 3] + boxes[:, 1]) / 2.
-        print(center_x, '\t', center_y)
+        width, height = (boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1])
+
         belong_cell_x = torch.tensor((center_x // CELL_SIZE), dtype=torch.long)
         belong_cell_y = torch.tensor((center_y // CELL_SIZE), dtype=torch.long)
 
+        center_x_percentage_for_cell = (center_x - belong_cell_x * CELL_SIZE) / CELL_SIZE
+        center_y_percentage_for_cell = (center_y - belong_cell_y * CELL_SIZE) / CELL_SIZE
+
         target = torch.zeros((CELL_COUNT, CELL_COUNT, 30), dtype=torch.float)
-        for c_x, c_y, label in zip(belong_cell_x, belong_cell_y, labels):
-            target[c_x, c_y, 4] = 1
-            target[c_x, c_y, 9] = 1
-            target[c_x, c_y, torch.tensor(label + 10, dtype=torch.long)] = 1
+        for index_x, index_y, c_x, c_y, w, h, label in zip(belong_cell_x, belong_cell_y,
+                                                           center_x_percentage_for_cell,
+                                                           center_y_percentage_for_cell,
+                                                           width, height, labels):
+            target[index_x, index_y, [4, 9]] = 1.
+            target[index_x, index_y, [0, 5]] = c_x
+            target[index_x, index_y, [1, 6]] = c_y
+            target[index_x, index_y, [2, 7]] = w
+            target[index_x, index_y, [3, 8]] = h
+            # label is begin with 1,so sub 1
+            target[index_x, index_y, 10 + label - 1] = 1.
+
         return target
