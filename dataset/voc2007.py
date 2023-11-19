@@ -86,8 +86,8 @@ class Voc2007Dataset(dataset.Dataset):
             target[index_x, index_y, [4, 9]] = 1.
             target[index_x, index_y, [0, 5]] = c_x
             target[index_x, index_y, [1, 6]] = c_y
-            target[index_x, index_y, [2, 7]] = w
-            target[index_x, index_y, [3, 8]] = h
+            target[index_x, index_y, [2, 7]] = torch.sqrt(w)
+            target[index_x, index_y, [3, 8]] = torch.sqrt(h)
             # label is begin with 1,so sub 1
             target[index_x, index_y, 10 + label - 1] = 1.
 
