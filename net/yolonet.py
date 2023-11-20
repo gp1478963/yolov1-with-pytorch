@@ -70,14 +70,15 @@ class YoloNet(torch.nn.Module):
         self.weights_init()
 
     def forward(self, x):
+        N = x.size()[0]
         stds = []
         # 1
         x = self.maxpool1(self.relu(self.conv1_0(x)))
-        stds.append(x.std())
+        # stds.append(x.std())
 
         # 2
         x = self.maxpool2(self.relu(self.conv2_0(x)))
-        stds.append(x.std())
+        # stds.append(x.std())
 
         # 3
         x = self.relu(self.conv3_0(x))
@@ -85,7 +86,7 @@ class YoloNet(torch.nn.Module):
         x = self.relu(self.conv3_2(x))
         x = self.relu(self.conv3_3(x))
         x = self.maxpool2(x)
-        stds.append(x.std())
+        # stds.append(x.std())
 
         # 4
         x = self.relu(self.conv4_0(x))
@@ -99,7 +100,7 @@ class YoloNet(torch.nn.Module):
         x = self.relu(self.conv4_8(x))
         x = self.relu(self.conv4_9(x))
         x = self.maxpool2(x)
-        stds.append(x.std())
+        # stds.append(x.std())
 
         # 5
         x = self.relu(self.conv5_0(x))
@@ -108,20 +109,20 @@ class YoloNet(torch.nn.Module):
         x = self.relu(self.conv5_3(x))
         x = self.relu(self.conv5_4(x))
         x = self.maxpool2(x)
-        stds.append(x.std())
+        # stds.append(x.std())
 
         # 6
         x = self.relu(self.conv6_0(x))
         x = self.relu(self.conv6_1(x))
-        stds.append(x.std())
+        # stds.append(x.std())
 
         # 7 fc
         x = self.fc7_0(nn.Flatten()(x))
         # A dropout layer with rate = .5 after the first
         # connected layer prevents co-adaptation between layers
         x = self.dropout7(x)
-        stds.append(x.std())
-        x = self.fc7_1(x)
+        # stds.append(x.std())
+        x = self.fc7_1(x).reshape(N, 7, 7, 30)
         return x, stds
 
     def weights_init(self):

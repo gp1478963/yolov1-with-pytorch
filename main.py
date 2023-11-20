@@ -1,38 +1,39 @@
-from net import yolonet
-import torch
-from dataset import voc2007
-from dataset import image_target_transforms
-
-from torchvision import transforms
+import torch.optim
+import torch_directml
 from torch.utils.data import DataLoader
+from torchvision import transforms
+
+import yolov1_train
+from dataset import image_target_transforms
+from dataset import voc2007
+from eval import yolov1_loss
+from net import yolonet
 
 # dataset_transforms = transforms.Compose([image_target_transforms.ImageStandardize()])
 dataset_transforms = [image_target_transforms.ImageResize(width=448, height=448), transforms.ToTensor()]
 target_dataset_transforms_l = [image_target_transforms.ImageNormalize()]
 
-batch_size = 1
-yolo_model = yolonet.YoloNet()
-epoch_count = 1
+
+if torch_directml.is_available():
+    device = torch_directml.device(0)
+else:
+    device = 'cpu'
 
 dataset_obj = voc2007.Voc2007Dataset(
     PASCAL_VOC='D:\\image\\datasets\\VOC2007\\PASCAL_VOC',
     VOCtrainval='D:\\image\\datasets\\VOC2007\\VOCtrainval_06-Nov-2007',
     transform=dataset_transforms,
-    target_transform=target_dataset_transforms_l)
+    target_transform=target_dataset_transforms_l, device=device)
 
-dataloader = DataLoader(dataset=dataset_obj, batch_size=batch_size, shuffle=True)
-for epoch in range(epoch_count):
-    for image, target in dataloader:
-        # output = yolo_model.forward(image)
-        # print(output)
-        print(target)
 
-# a, b, c = dataset_obj.__getitem__(3)
+EPOCH_STAGE_LIST = [(1, 1e-3), (75, 1e-2), (30, 1e-3), (30, 1e-4)]
+BATCH_SIZE = 1
 
-# input = torch.rand((1, 3, 448, 448))
-#
-# state_dict_c = yolo_model.state_dict()
-# for name in state_dict_c:
-#     print(name)
-# output = yolo_model.forward(input)
-# print(output)
+yolo_model = yolonet.YoloNet()
+evaluate_obj = yolov1_loss.YoloV1Loss(device=device).to(device)
+optimum = torch.optim.SGD(yolo_model.parameters(), lr=0.0001, momentum=0.9, weight_decay=0.0005)
+dataloader = DataLoader(dataset=dataset_obj, batch_size=BATCH_SIZE, shuffle=True)
+
+yolov1_train.train_stage(yolo_model, dataloader, optimum, evaluate_obj, device, EPOCH_STAGE_LIST)
+
+

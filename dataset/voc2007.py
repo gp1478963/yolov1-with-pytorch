@@ -11,12 +11,13 @@ CELL_COUNT = 7
 
 class Voc2007Dataset(dataset.Dataset):
     def __init__(self, PASCAL_VOC=None, VOCtrainval=None, VOCtest=None, transform=None, target_transform=None,
-                 train=True):
+                 train=True, device='cpu'):
         super().__init__()
         self.PASCAL_VOC = PASCAL_VOC
         self.transform = transform
         self.target_transform = target_transform
         self.train = train
+        self.device = device
         if train:
             self.Voc = os.path.join(VOCtrainval, 'VOCdevkit', 'VOC2007', 'JPEGImages')
             self.JsonFile = 'pascal_train2007.json'
@@ -31,8 +32,11 @@ class Voc2007Dataset(dataset.Dataset):
         image = cv2.imread(image_path, cv2.IMREAD_COLOR)
         height_original, width_original = image.shape[:2]
         bounding_box = torch.Tensor(bounding_box)
+
         bounding_box[:, [0, 2]] /= width_original
         bounding_box[:, [1, 3]] /= height_original
+        bounding_box[:, 2] = bounding_box[:, 0] + bounding_box[:, 2]
+        bounding_box[:, 3] = bounding_box[:, 1] + bounding_box[:, 3]
 
         if self.transform is not None:
             for transform_fn in self.transform:
@@ -42,7 +46,7 @@ class Voc2007Dataset(dataset.Dataset):
             for transform_fn in self.target_transform:
                 image, bounding_box, label = transform_fn(image, bounding_box, label)
 
-        return image, self.target_reshape(bounding_box, label)
+        return image.to(self.device), self.target_reshape(bounding_box, label).to(self.device)
 
     def __len__(self):
         return len(self.images)
@@ -79,6 +83,7 @@ class Voc2007Dataset(dataset.Dataset):
         center_y_percentage_for_cell = (center_y - belong_cell_y * CELL_SIZE) / CELL_SIZE
 
         target = torch.zeros((CELL_COUNT, CELL_COUNT, 30), dtype=torch.float)
+        #  we mask label per image only one count
         for index_x, index_y, c_x, c_y, w, h, label in zip(belong_cell_x, belong_cell_y,
                                                            center_x_percentage_for_cell,
                                                            center_y_percentage_for_cell,
@@ -90,5 +95,6 @@ class Voc2007Dataset(dataset.Dataset):
             target[index_x, index_y, [3, 8]] = torch.sqrt(h)
             # label is begin with 1,so sub 1
             target[index_x, index_y, 10 + label - 1] = 1.
+            break
 
         return target

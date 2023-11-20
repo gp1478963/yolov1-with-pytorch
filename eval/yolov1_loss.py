@@ -1,19 +1,19 @@
-from torch import nn
-import numpy
 import torch
-import calcate_iou
 import torchvision
+from torch import nn
+
 
 class YoloV1Loss(nn.Module):
-    def __init__(self, lambda_coord=5., lambda_noobj=.5, CELL_SILE=1/7):
+    def __init__(self, lambda_coord=5., lambda_noobj=.5, CELL_SILE=1 / 7, device='cpu'):
         super(YoloV1Loss, self).__init__()
         self.lambda_coord = lambda_coord
         self.lambda_noobj = lambda_noobj
         self.CELL_SILE = CELL_SILE
+        self.device = device
 
     def forward(self, predictions, targets):
-        coord_mask = targets[:, :, 4] == 1
-        noobj_mask = targets[:, :, 4] == 0
+        coord_mask = targets[:, :, :, 4] == 1
+        noobj_mask = targets[:, :, :, 4] == 0
 
         confidence_loss_noobj = nn.functional.mse_loss(predictions[noobj_mask].reshape(-1, 30)[:, [4, 9]],
                                                        targets[noobj_mask].reshape(-1, 30)[:, [4, 9]],
@@ -24,11 +24,11 @@ class YoloV1Loss(nn.Module):
         preds_coord = predictions[have_obj_mask].reshape(-1, 30)
 
         # c1, c2, w, h c, p
-        coord_coord = torch.zeros((preds_coord.size()[0] // 2, 6))
-        coord_coord_t = torch.zeros((preds_coord.size()[0] // 2, 6))
+        coord_coord = torch.zeros((preds_coord.size()[0] // 2, 6), device=self.device)
+        coord_coord_t = torch.zeros((preds_coord.size()[0] // 2, 6), device=self.device)
 
         for (pred_coord, target_coord, iou_index, iou_target_index) in zip(preds_coord, targets_coord,
-                                                                        coord_coord, coord_coord_t):
+                                                                           coord_coord, coord_coord_t):
             pred_box = torch.hstack((pred_coord[:4], pred_coord[5:9])).reshape(-1, 4)
             target_box = torch.square(target_coord[:4].reshape(-1, 4))
             pred_box[:, :2] = pred_box[:, :2] * self.CELL_SILE - pred_box[:, 2:4]
@@ -44,7 +44,7 @@ class YoloV1Loss(nn.Module):
             iou_target_index[4] = per_prebox_max_iou
             iou_target_index[5] = 1
 
-            begin_index = per_prebox_max_iou_index*5
+            begin_index = per_prebox_max_iou_index * 5
             iou_index[:4] = pred_coord[begin_index: begin_index + 4]
             iou_index[4] = pred_coord[begin_index + 4]
             iou_index[5] = pred_coord[10 + obj_index]
@@ -62,14 +62,23 @@ class YoloV1Loss(nn.Module):
 
 
 if __name__ == '__main__':
-    loss_function = YoloV1Loss(lambda_coord=5., lambda_noobj=.5, CELL_SILE=1/7)
-    pre_mat = torch.rand((7, 7, 30), dtype=torch.float)
+    import torch_directml
+
+    loss_function = YoloV1Loss(lambda_coord=5., lambda_noobj=.5, CELL_SILE=1 / 7)
+    if torch_directml.is_available():
+        device = torch_directml.device(0)
+        loss_function.device = device
+    else:
+        device = 'cpu'
+
+    loss_function = loss_function.to(device)
+    pre_mat = torch.rand((7, 7, 30), dtype=torch.float, device=device)
     pre_mat[0, 0, [4, 9, 19]] = 1
     pre_mat[2, 2, [4, 9, 23]] = 1
-    target_mat = torch.zeros((7, 7, 30), dtype=torch.float)
+    target_mat = torch.zeros((7, 7, 30), dtype=torch.float, device=device)
     target_mat[0, 0, [4, 9, 20]] = 1
     target_mat[1, 2, [4, 9, 23]] = 1
-    print(loss_function(pre_mat, target_mat))
+    print(loss_function(pre_mat.unsqueeze(0), target_mat.unsqueeze(0)))
 
 # mat1 = torch.rand((1, 3))
 #
