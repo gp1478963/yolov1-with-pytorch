@@ -23,12 +23,13 @@ class YoloV1Loss(nn.Module):
         targets_coord = targets[have_obj_mask].reshape(-1, 30)
         preds_coord = predictions[have_obj_mask].reshape(-1, 30)
 
-        # c1, c2, w, h c, p
-        coord_coord = torch.zeros((preds_coord.size()[0] // 2, 6), device=self.device)
-        coord_coord_t = torch.zeros((preds_coord.size()[0] // 2, 6), device=self.device)
+        coord_mask = torch.zeros(preds_coord.size(), dtype=torch.bool, device=self.device)
+        coord_confidence = torch.zeros(preds_coord.size(), dtype=torch.bool, device=self.device)
+        classic_mask = torch.zeros(preds_coord.size(), dtype=torch.bool, device=self.device)
 
-        for (pred_coord, target_coord, iou_index, iou_target_index) in zip(preds_coord, targets_coord,
-                                                                           coord_coord, coord_coord_t):
+        for (pred_coord, target_coord, mask, confidence, class_mask) in zip(preds_coord, targets_coord,
+                                                                            coord_mask, coord_confidence, classic_mask
+                                                                            ):
             pred_box = torch.hstack((pred_coord[:4], pred_coord[5:9])).reshape(-1, 4)
             target_box = torch.square(target_coord[:4].reshape(-1, 4))
             pred_box[:, :2] = pred_box[:, :2] * self.CELL_SILE - pred_box[:, 2:4]
@@ -36,29 +37,29 @@ class YoloV1Loss(nn.Module):
             target_box[:, :2] = target_box[:, :2] * self.CELL_SILE - target_box[:, 2:4]
             target_box[:, 2:] = target_box[:, :2] * self.CELL_SILE + target_box[:, 2:4]
             iou = torchvision.ops.box_iou(pred_box, target_box)
-            # iou = calcate_iou.calc_iou(pred_box, target_box)
+
             per_prebox_max_iou, per_prebox_max_iou_index = torch.max(iou, dim=0)
             obj_index = torch.argmax(target_coord[10:], dim=0)
+            class_mask[10 + obj_index] = True
+            mask[per_prebox_max_iou_index * 5: per_prebox_max_iou_index * 5 + 4] = True
+            confidence[per_prebox_max_iou_index * 5] = True
+            target_coord[per_prebox_max_iou_index * 5] = per_prebox_max_iou.data
 
-            iou_target_index[:4] = target_coord[:4]
-            iou_target_index[4] = per_prebox_max_iou
-            iou_target_index[5] = 1
+        calculate_boxes = preds_coord[coord_mask].reshape(-1, 4)
+        calculate_boxes_target = targets_coord[coord_mask].reshape(-1, 4)
 
-            begin_index = per_prebox_max_iou_index * 5
-            iou_index[:4] = pred_coord[begin_index: begin_index + 4]
-            iou_index[4] = pred_coord[begin_index + 4]
-            iou_index[5] = pred_coord[10 + obj_index]
-
-        coordence_center_loss = nn.functional.mse_loss(coord_coord[:, :2], coord_coord_t[:, :2],
+        coordence_center_loss = nn.functional.mse_loss(calculate_boxes[:, :2], calculate_boxes_target[:, :2],
                                                        size_average=False, reduction='sum') * self.lambda_coord
-        ccoord_xy_loss = nn.functional.mse_loss(coord_coord[:, 2:4], coord_coord_t[:, 2:4],
-                                                size_average=False) * self.lambda_coord
-        confidence_loss = nn.functional.mse_loss(coord_coord[:, 5], coord_coord_t[:, 5],
+
+        coordence_wh_loss = nn.functional.mse_loss(calculate_boxes[:, 2:4], calculate_boxes_target[:, 2:4],
+                                                   size_average=False, reduction='sum') * self.lambda_coord
+
+        confidence_loss = nn.functional.mse_loss(preds_coord[coord_confidence], targets_coord[coord_confidence],
                                                  size_average=False, reduction='sum') * self.lambda_coord
-        classier_loss = nn.functional.mse_loss(coord_coord[:, -1], coord_coord_t[:, -1],
+        classier_loss = nn.functional.mse_loss(preds_coord[classic_mask], targets_coord[classic_mask],
                                                size_average=False, reduction='sum') * self.lambda_coord
 
-        return coordence_center_loss + ccoord_xy_loss + confidence_loss + classier_loss + confidence_loss_noobj
+        return confidence_loss_noobj + coordence_center_loss + coordence_wh_loss + confidence_loss + classier_loss
 
 
 if __name__ == '__main__':
