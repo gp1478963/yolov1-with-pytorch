@@ -14,10 +14,10 @@ dataset_transforms = [image_target_transforms.ImageResize(width=448, height=448)
 target_dataset_transforms_l = [image_target_transforms.ImageNormalize()]
 
 
-if torch_directml.is_available():
-    device = torch_directml.device(0)
-else:
-    device = 'cpu'
+# if torch_directml.is_available():
+#     device = torch_directml.device(0)
+# else:
+device = 'cpu'
 
 dataset_obj = voc2007.Voc2007Dataset(
     PASCAL_VOC='D:\\image\\datasets\\VOC2007\\PASCAL_VOC',
@@ -26,14 +26,20 @@ dataset_obj = voc2007.Voc2007Dataset(
     target_transform=target_dataset_transforms_l, device=device)
 
 
-EPOCH_STAGE_LIST = [(1, 1e-3), (75, 1e-2), (30, 1e-3), (30, 1e-4)]
-BATCH_SIZE = 1
+PRETRAIN = True
+
+EPOCH_STAGE_LIST = [(1, 1e-3), (75, 1e-3), (30, 1e-3), (30, 1e-4)]
+BATCH_SIZE = 2
 
 yolo_model = yolonet.YoloNet()
-evaluate_obj = yolov1_loss.YoloV1Loss(device=device).to(device)
+if PRETRAIN:
+    yolo_model.load_state_dict(torch.load('./pth/yolo.pth'))
+
+evaluate_obj = yolov1_loss.YoloV1Loss(device=device)
 optimum = torch.optim.SGD(yolo_model.parameters(), lr=0.0001, momentum=0.9, weight_decay=0.0005)
 dataloader = DataLoader(dataset=dataset_obj, batch_size=BATCH_SIZE, shuffle=True)
 
 yolov1_train.train_stage(yolo_model, dataloader, optimum, evaluate_obj, device, EPOCH_STAGE_LIST)
+torch.save(yolo_model, 'yolov1-with-pytorch.pth')
 
 

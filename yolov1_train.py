@@ -8,8 +8,9 @@ import numpy as np
 
 wind = visdom.Visdom()
 wind.line([0.], [0.], win='loss', opts=dict(title='loss'))
-def train_im(model, train_loader, optimizer, criterion, device, epoch_count, learning_rate, index):
 
+
+def train_im(model, train_loader, optimizer, criterion, device, epoch_count, learning_rate, index):
     set_lr(optimizer, learning_rate)
     averg_loss = []
     for epoch in range(epoch_count):
@@ -25,9 +26,12 @@ def train_im(model, train_loader, optimizer, criterion, device, epoch_count, lea
 
             loss_list.append(total_loss.data.cpu())
             # averg_loss.append(numpy.sum(loss_list) / len(loss_list))
-            print(index)
             wind.line([numpy.sum(loss_list) / len(loss_list)], [index], win='loss', update='append')
+            if numpy.sum(loss_list) / len(loss_list) < 1.:
+                return
             # print(average_loss)
+
+    torch.save(model.state_dict(), 'model.pth')
 
 
 def train_stage(model, train_loader, optimizer, criterion, device, epoch_dict):
