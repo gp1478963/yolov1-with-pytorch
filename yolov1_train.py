@@ -6,8 +6,8 @@ import visdom
 import time
 import numpy as np
 
-wind = visdom.Visdom()
-wind.line([0.], [0.], win='loss', opts=dict(title='loss'))
+# wind = visdom.Visdom()
+# wind.line([0.], [0.], win='loss', opts=dict(title='loss'))
 
 
 def train_im(model, train_loader, optimizer, criterion, device, epoch_count, learning_rate, index):
@@ -26,12 +26,14 @@ def train_im(model, train_loader, optimizer, criterion, device, epoch_count, lea
 
             loss_list.append(total_loss.data.cpu())
             # averg_loss.append(numpy.sum(loss_list) / len(loss_list))
-            wind.line([numpy.sum(loss_list) / len(loss_list)], [index], win='loss', update='append')
+            # wind.line([numpy.sum(loss_list) / len(loss_list)], [index], win='loss', update='append')
+            print('epoch <{0}>, current batch loss:[{1}]. average loss:[{2}]'
+                  .format(epoch, total_loss.data.cpu(), numpy.sum(loss_list) / len(loss_list)))
             if numpy.sum(loss_list) / len(loss_list) < 1.:
                 return
             # print(average_loss)
 
-    torch.save(model.state_dict(), 'model.pth')
+    torch.save(model.state_dict(), 'pth/model.pth')
 
 
 def train_stage(model, train_loader, optimizer, criterion, device, epoch_dict):

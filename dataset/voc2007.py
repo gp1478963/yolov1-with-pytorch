@@ -22,8 +22,8 @@ class Voc2007Dataset(dataset.Dataset):
             self.Voc = os.path.join(VOCtrainval, 'VOCdevkit', 'VOC2007', 'JPEGImages')
             self.JsonFile = 'pascal_train2007.json'
         else:
-            self.Voc = os.path.join(VOCtest, 'VOCtest', 'VOC2007', 'JPEGImages')
-            self.JsonFile = 'VOCtest_06-Nov-2007'
+            self.Voc = os.path.join(VOCtest, 'VOCdevkit', 'VOC2007', 'JPEGImages')
+            self.JsonFile = 'pascal_test2007.json'
         self.getset()
 
     def __getitem__(self, index):

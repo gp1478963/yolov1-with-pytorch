@@ -31,7 +31,9 @@ class YoloV1Loss(nn.Module):
                                                                             coord_mask, coord_confidence, classic_mask
                                                                             ):
             pred_box = torch.hstack((pred_coord[:4], pred_coord[5:9])).reshape(-1, 4)
-            target_box = torch.square(target_coord[:4].reshape(-1, 4))
+            pred_box[:, 2:] = torch.square(pred_box[:, 2:])
+            target_box = target_coord[:4].reshape(-1, 4)
+            target_box[:, 2:] = torch.square(target_box[:, 2:])
             pred_box[:, :2] = pred_box[:, :2] * self.CELL_SILE - pred_box[:, 2:4]
             pred_box[:, 2:] = pred_box[:, :2] * self.CELL_SILE + pred_box[:, 2:4]
             target_box[:, :2] = target_box[:, :2] * self.CELL_SILE - target_box[:, 2:4]
@@ -42,8 +44,8 @@ class YoloV1Loss(nn.Module):
             obj_index = torch.argmax(target_coord[10:], dim=0)
             class_mask[10 + obj_index] = True
             mask[per_prebox_max_iou_index * 5: per_prebox_max_iou_index * 5 + 4] = True
-            confidence[per_prebox_max_iou_index * 5] = True
-            target_coord[per_prebox_max_iou_index * 5] = per_prebox_max_iou.data
+            confidence[per_prebox_max_iou_index * 5 + 4] = True
+            # target_coord[per_prebox_max_iou_index * 5] = per_prebox_max_iou.data
 
         calculate_boxes = preds_coord[coord_mask].reshape(-1, 4)
         calculate_boxes_target = targets_coord[coord_mask].reshape(-1, 4)
