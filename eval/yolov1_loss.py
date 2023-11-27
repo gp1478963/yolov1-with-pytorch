@@ -30,14 +30,14 @@ class YoloV1Loss(nn.Module):
         for (pred_coord, target_coord, mask, confidence, class_mask) in zip(preds_coord, targets_coord,
                                                                             coord_mask, coord_confidence, classic_mask
                                                                             ):
-            pred_box = torch.hstack((pred_coord[:4], pred_coord[5:9])).reshape(-1, 4)
+            pred_box = torch.hstack((pred_coord[:4], pred_coord[5:9])).reshape(-1, 4).clone()
             pred_box[:, 2:] = torch.square(pred_box[:, 2:])
-            target_box = target_coord[:4].reshape(-1, 4)
+            target_box = target_coord[:4].reshape(-1, 4).clone()
             target_box[:, 2:] = torch.square(target_box[:, 2:])
-            pred_box[:, :2] = pred_box[:, :2] * self.CELL_SILE - pred_box[:, 2:4]
-            pred_box[:, 2:] = pred_box[:, :2] * self.CELL_SILE + pred_box[:, 2:4]
-            target_box[:, :2] = target_box[:, :2] * self.CELL_SILE - target_box[:, 2:4]
-            target_box[:, 2:] = target_box[:, :2] * self.CELL_SILE + target_box[:, 2:4]
+            pred_box[:, :2] = pred_box[:, :2] * self.CELL_SILE - pred_box[:, 2:4]/2
+            pred_box[:, 2:] = pred_box[:, :2] * self.CELL_SILE + pred_box[:, 2:4]/2
+            target_box[:, :2] = target_box[:, :2] * self.CELL_SILE - target_box[:, 2:4]/2
+            target_box[:, 2:] = target_box[:, :2] * self.CELL_SILE + target_box[:, 2:4]/2
             iou = torchvision.ops.box_iou(pred_box, target_box)
 
             per_prebox_max_iou, per_prebox_max_iou_index = torch.max(iou, dim=0)

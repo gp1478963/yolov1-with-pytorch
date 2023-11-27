@@ -18,18 +18,18 @@ if torch_directml.is_available():
     device = torch_directml.device(0)
 else:
     device = 'cpu'
-
+device = 'cpu'
 dataset_obj = voc2007.Voc2007Dataset(
-    PASCAL_VOC='E:\\voc2007\\PASCAL_VOC',
-    VOCtrainval='E:\\voc2007\\VOCtrainval_06-Nov-2007',
+    PASCAL_VOC='D:\\image\\datasets\\VOC2007\\PASCAL_VOC',
+    VOCtrainval='D:\\image\\datasets\\VOC2007\\VOCtrainval_06-Nov-2007',
     transform=dataset_transforms,
     target_transform=target_dataset_transforms_l, device=device)
 
 
-PRETRAIN = True
+PRETRAIN = False
 
 EPOCH_STAGE_LIST = [(1, 1e-3), (75, 1e-3), (30, 1e-3), (30, 1e-4)]
-BATCH_SIZE = 8
+BATCH_SIZE = 1
 
 yolo_model = yolonet.YoloNet().to(device)
 if PRETRAIN:
