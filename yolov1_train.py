@@ -17,8 +17,8 @@ def train_im(model, train_loader, optimizer, criterion, device, epoch_count, lea
         loss_list = []
 
         for image, target in train_loader:
-            output, stds = model.forward(image)
-            total_loss = criterion.forward(output, target)
+            output = model.forward(image)
+            class_loss, confidence_loss, coordance_los, total_loss = criterion.forward(output, target)
             index = index + 1
             optimizer.zero_grad()
             total_loss.backward()
@@ -27,8 +27,10 @@ def train_im(model, train_loader, optimizer, criterion, device, epoch_count, lea
             loss_list.append(total_loss.data.cpu())
             # averg_loss.append(numpy.sum(loss_list) / len(loss_list))
             # wind.line([numpy.sum(loss_list) / len(loss_list)], [index], win='loss', update='append')
-            print('epoch <{0}>, current batch loss:[{1}]. average loss:[{2}]'
-                  .format(epoch, total_loss.data.cpu(), numpy.sum(loss_list) / len(loss_list)))
+            print('epoch <{0}>, current batch:class_loss:[{1:.4f}], confidence_loss:[{2:.4f}], '
+                  'coordance_los:[{3:.4f}],total loss:[{4:.4f}],  average loss:[{5:.4f}]'
+                  .format(epoch, class_loss, confidence_loss,  coordance_los, total_loss.data.cpu(),
+                          numpy.sum(loss_list) / len(loss_list)))
             if numpy.sum(loss_list) / len(loss_list) < 1.:
                 return
             # print(average_loss)

@@ -61,7 +61,8 @@ class YoloV1Loss(nn.Module):
         classier_loss = nn.functional.mse_loss(preds_coord[classic_mask], targets_coord[classic_mask],
                                                size_average=False, reduction='sum') * self.lambda_coord
 
-        return confidence_loss_noobj + coordence_center_loss + coordence_wh_loss + confidence_loss + classier_loss
+        total_loss = confidence_loss_noobj + coordence_center_loss + coordence_wh_loss + confidence_loss + classier_loss
+        return classier_loss, confidence_loss, coordence_center_loss + coordence_wh_loss, total_loss
 
 
 if __name__ == '__main__':

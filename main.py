@@ -8,7 +8,8 @@ from dataset import image_target_transforms
 from dataset import voc2007
 from eval import yolov1_loss
 from net import yolonet
-
+from net import resnet_yolo
+from torchvision import models
 # dataset_transforms = transforms.Compose([image_target_transforms.ImageStandardize()])
 dataset_transforms = [image_target_transforms.ImageResize(width=448, height=448), transforms.ToTensor()]
 target_dataset_transforms_l = [image_target_transforms.ImageNormalize()]
@@ -31,7 +32,16 @@ PRETRAIN = False
 EPOCH_STAGE_LIST = [(1, 1e-3), (75, 1e-3), (30, 1e-3), (30, 1e-4)]
 BATCH_SIZE = 1
 
-yolo_model = yolonet.YoloNet().to(device)
+USE_RESNET = True
+if USE_RESNET:
+    yolo_model = resnet_yolo.resnet50(pretrained=False).to(device)
+    resnet = models.resnet50(pretrained=True).to(device)
+    new_state_dict = resnet.state_dict()
+    dd = yolo_model.state_dict()
+    yolo_model.load_state_dict(dd)
+else:
+    yolo_model = yolonet.YoloNet().to(device)
+
 if PRETRAIN:
     yolo_model.load_state_dict(torch.load('./pth/model.pth'))
 

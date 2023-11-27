@@ -9,8 +9,8 @@ from dataset import voc2007
 from net import yolonet
 from dataset import image_target_transforms
 
-IMAGE_PATH = 'E:\\voc2007\\VOCtest_06-Nov-2007\\VOCdevkit\\VOC2007\\JPEGImages\\000003.jpg'
-IOU_THRESHOLD = 0.0006
+IMAGE_PATH = 'D:\\image\\datasets\\VOC2007\\VOCtest_06-Nov-2007\\VOCdevkit\\VOC2007\\JPEGImages\\000216.jpg'
+IOU_THRESHOLD = 0.7
 CELL_COUNT = 7
 CELL_SIZE = 1 / 7
 IMAGE_SIZE = 448
