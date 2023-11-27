@@ -30,6 +30,7 @@ class Voc2007Dataset(dataset.Dataset):
         image_path = os.path.join(self.Voc, self.images[index])
         bounding_box, label = self.boxes[index], self.labels[index]
         image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+
         height_original, width_original = image.shape[:2]
         bounding_box = torch.Tensor(bounding_box)
 
@@ -37,6 +38,10 @@ class Voc2007Dataset(dataset.Dataset):
         bounding_box[:, [1, 3]] /= height_original
         bounding_box[:, 2] = bounding_box[:, 0] + bounding_box[:, 2]
         bounding_box[:, 3] = bounding_box[:, 1] + bounding_box[:, 3]
+
+        image = cv2.resize(image, (448, 448), interpolation=cv2.INTER_CUBIC)
+        image = torch.from_numpy(image)
+        image = torch.permute(image, (2, 0, 1))
 
         if self.transform is not None:
             for transform_fn in self.transform:
@@ -88,6 +93,8 @@ class Voc2007Dataset(dataset.Dataset):
                                                            center_x_percentage_for_cell,
                                                            center_y_percentage_for_cell,
                                                            width, height, labels):
+            if target[index_x, index_y, 4] == 1:
+                continue
             target[index_x, index_y, [4, 9]] = 1.
             target[index_x, index_y, [0, 5]] = c_x
             target[index_x, index_y, [1, 6]] = c_y
@@ -95,6 +102,5 @@ class Voc2007Dataset(dataset.Dataset):
             target[index_x, index_y, [3, 8]] = torch.sqrt(h)
             # label is begin with 1,so sub 1
             target[index_x, index_y, 10 + label - 1] = 1.
-            break
 
         return target

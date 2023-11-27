@@ -127,7 +127,7 @@ class YoloNet(torch.nn.Module):
         # stds.append(x.std())
         x = self.fc7_1(x).reshape(N, 7, 7, 30)
         x = torch.nn.Sigmoid()(x)
-        return x, stds
+        return x
 
     def weights_init(self):
         for modl in self.modules():

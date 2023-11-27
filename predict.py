@@ -3,14 +3,16 @@ import torch
 import cv2
 
 import matplotlib
+import torch_directml
 from torchvision.transforms import transforms
 
 from dataset import voc2007
 from net import yolonet
+from net import resnet_yolo
 from dataset import image_target_transforms
 
-IMAGE_PATH = 'D:\\image\\datasets\\VOC2007\\VOCtest_06-Nov-2007\\VOCdevkit\\VOC2007\\JPEGImages\\000216.jpg'
-IOU_THRESHOLD = 0.7
+IMAGE_PATH = 'E:\\voc2007\\VOCtest_06-Nov-2007\\VOCdevkit\\VOC2007\\JPEGImages\\000002.jpg'
+IOU_THRESHOLD = 0.8
 CELL_COUNT = 7
 CELL_SIZE = 1 / 7
 IMAGE_SIZE = 448
@@ -20,13 +22,20 @@ CELL_PLEXS = 448 / 7
 classicers = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
               "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
 
+
+if torch_directml.is_available():
+    device = torch_directml.device(0)
+else:
+    device = 'cpu'
+
 dataset_transforms = [image_target_transforms.ImageResize(width=448, height=448), transforms.ToTensor()]
 target_dataset_transforms_l = [image_target_transforms.ImageNormalize()]
 
 if __name__ == "__main__":
     # define yolo net model
     print('python predict program...')
-    model = yolonet.YoloNet()
+    # model = resnet_yolo.resnet50(False).to(device)
+    model = yolonet.YoloNet().to(device)
     state_dict_origin = model.state_dict()
     model.load_state_dict(torch.load('./pth/model.pth'))
     model.eval()
@@ -39,11 +48,11 @@ if __name__ == "__main__":
 
     # load image with 3 channels, resize image to (448, 448)
     image_ori = cv2.imread(IMAGE_PATH, cv2.IMREAD_COLOR)
-    image_ori = cv2.resize(image_ori, (448, 448), cv2.INTER_CUBIC)
+    image_ori = cv2.resize(image_ori, (448, 448), interpolation=cv2.INTER_CUBIC)
     image, _, _ = image_target_transforms.ImageNormalize()(image_ori, "", "")
 
-    image_tensor = torch.from_numpy(image).unsqueeze(0).permute(0, 3, 1, 2).float()
-    prediction, stds = model.forward(image_tensor)
+    image_tensor = torch.from_numpy(image).unsqueeze(0).permute(0, 3, 1, 2).float().to(device)
+    prediction = model.forward(image_tensor)
 
     # _, prediction = dataset_obj.__getitem__(0)
 
