@@ -22,28 +22,29 @@ if torch_directml.is_available():
 else:
     device = 'cpu'
 
+
 dataset_obj = voc2007.Voc2007Dataset(
-    PASCAL_VOC='E:\\VOC2007\\PASCAL_VOC',
-    VOCtrainval='E:\\voc2007\\VOCtrainval_06-Nov-2007',
+    PASCAL_VOC='D:\\image\\datasets\\VOC2007\\PASCAL_VOC',
+    VOCtrainval='D:\\image\\datasets\\voc2007\\VOCtrainval_06-Nov-2007',
     transform=dataset_transforms,
     target_transform=target_dataset_transforms_l, device=device)
 
 dataset_obj_test = voc2007.Voc2007Dataset(
-    PASCAL_VOC='E:\\voc2007\\PASCAL_VOC',
-    VOCtest='E:\\voc2007\\VOCtest_06-Nov-2007',
+    PASCAL_VOC='D:\\image\\datasets\\voc2007\\PASCAL_VOC',
+    VOCtest='D:\\image\\datasets\\voc2007\\VOCtest_06-Nov-2007',
     transform=dataset_transforms,
     target_transform=target_dataset_transforms_l, train=False, device=device)
 
 PRETRAIN = True
 
-EPOCH_STAGE_LIST = [(2, 1e-2), (60, 1e-3), (40, 1e-4), (5, 1e-5)]
-BATCH_SIZE = 16
+EPOCH_STAGE_LIST = [(2, 1e-2), (6, 1e-3), (40, 1e-4), (5, 1e-5)]
+BATCH_SIZE = 1
 
-USE_RESNET = False
+USE_RESNET = True
 if USE_RESNET:
     yolo_model = resnet_yolo.resnet50(pretrained=False).to(device)
     dd = yolo_model.state_dict()
-    resnet = models.resnet50(pretrained=True).to(device)
+    resnet = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1).to(device)
     new_state_dict = resnet.state_dict()
     for st in new_state_dict.keys():
         if st in dd.keys() and not st.startswith('fc'):
