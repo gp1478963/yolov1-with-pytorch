@@ -17,7 +17,7 @@ class YoloV1Loss(nn.Module):
 
         confidence_loss_noobj = nn.functional.mse_loss(
             predictions[noobj_mask].reshape(-1, 30)[:, [4, 9]].reshape(-1, 1),
-            targets[noobj_mask].reshape(-1, 30)[:, [4, 9]].reshape(-1, 1)) * self.lambda_noobj
+            targets[noobj_mask].reshape(-1, 30)[:, [4, 9]].reshape(-1, 1), reduction='sum') * self.lambda_noobj
 
         have_obj_mask = torch.unsqueeze(coord_mask, dim=-1).expand_as(targets)
         targets_coord = targets[have_obj_mask].reshape(-1, 30)
@@ -50,14 +50,13 @@ class YoloV1Loss(nn.Module):
         calculate_boxes = preds_coord[coord_mask].reshape(-1, 4)
         calculate_boxes_target = targets_coord[coord_mask].reshape(-1, 4)
 
-        coordence_center_loss = nn.functional.mse_loss(calculate_boxes[:, :2],
-                                                       calculate_boxes_target[:, :2]) * self.lambda_coord
+        coordence_center_loss = nn.functional.mse_loss(calculate_boxes[:, :2], calculate_boxes_target[:, :2], reduction='sum') * self.lambda_coord
 
         coordence_wh_loss = nn.functional.mse_loss(calculate_boxes[:, 2:4],
-                                                   calculate_boxes_target[:, 2:4]) * self.lambda_coord
+                                                   calculate_boxes_target[:, 2:4], reduction='sum') * self.lambda_coord
 
-        confidence_loss = nn.functional.mse_loss(preds_coord[coord_confidence], targets_coord[coord_confidence])
-        classier_loss = nn.functional.mse_loss(preds_coord[:, 10:], targets_coord[:, 10:])
+        confidence_loss = nn.functional.mse_loss(preds_coord[coord_confidence], targets_coord[coord_confidence], reduction='sum')
+        classier_loss = nn.functional.mse_loss(preds_coord[:, 10:], targets_coord[:, 10:], reduction='sum')
 
         total_loss = confidence_loss_noobj + coordence_center_loss + coordence_wh_loss + confidence_loss + classier_loss
         return classier_loss, confidence_loss, coordence_center_loss + coordence_wh_loss, total_loss
