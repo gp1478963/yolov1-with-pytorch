@@ -4,6 +4,7 @@ import json
 import pathlib
 import cv2
 import os
+import numpy as np
 
 CELL_SIZE = 1 / 7
 CELL_COUNT = 7
@@ -18,12 +19,12 @@ class Voc2007Dataset(dataset.Dataset):
         self.target_transform = target_transform
         self.train = train
         self.device = device
-        if train:
-            self.Voc = os.path.join(VOCtrainval, 'VOCdevkit', 'VOC2007', 'JPEGImages')
-            self.JsonFile = 'pascal_train2007.json'
-        else:
-            self.Voc = os.path.join(VOCtest, 'VOCdevkit', 'VOC2007', 'JPEGImages')
-            self.JsonFile = 'pascal_test2007.json'
+        # if train:
+        self.Voc = os.path.join(VOCtrainval, 'VOCdevkit', 'VOC2007', 'JPEGImages')
+        self.JsonFile = 'pascal_train2007.json'
+        # else:
+        #     self.Voc = os.path.join(VOCtest, 'VOCdevkit', 'VOC2007', 'JPEGImages')
+        #     self.JsonFile = 'pascal_test2007.json'
         self.getset()
 
     def __getitem__(self, index):
@@ -31,13 +32,17 @@ class Voc2007Dataset(dataset.Dataset):
         bounding_box, label = self.boxes[index], self.labels[index]
         image = cv2.imread(image_path, cv2.IMREAD_COLOR)
 
+        image_original = 1
+        if self.train is False:
+            image_original = np.copy(image)
+
         height_original, width_original = image.shape[:2]
         bounding_box = torch.Tensor(bounding_box)
 
-        bounding_box[:, [0, 2]] /= width_original
-        bounding_box[:, [1, 3]] /= height_original
-        bounding_box[:, 2] = bounding_box[:, 0] + bounding_box[:, 2]
-        bounding_box[:, 3] = bounding_box[:, 1] + bounding_box[:, 3]
+        # bounding_box[:, [0, 2]] /= width_original
+        # bounding_box[:, [1, 3]] /= height_original
+        # bounding_box[:, 2] = bounding_box[:, 0] + bounding_box[:, 2]
+        # bounding_box[:, 3] = bounding_box[:, 1] + bounding_box[:, 3]
 
         image = cv2.resize(image, (448, 448), interpolation=cv2.INTER_CUBIC)
         image = torch.from_numpy(image)
@@ -51,7 +56,10 @@ class Voc2007Dataset(dataset.Dataset):
             for transform_fn in self.target_transform:
                 image, bounding_box, label = transform_fn(image, bounding_box, label)
 
-        return image.to(self.device), self.target_reshape(bounding_box, label).to(self.device)
+        if self.train is True:
+            return image.to(self.device), self.target_reshape(bounding_box, label, width_original, height_original).to(self.device)
+        else:
+            return image.to(self.device), self.target_reshape(bounding_box, label, width_original, height_original).to(self.device), image_original
 
     def __len__(self):
         return len(self.images)
@@ -77,9 +85,9 @@ class Voc2007Dataset(dataset.Dataset):
                 self.boxes[index].append(annotation['bbox'])
                 self.labels[index].append(annotation['category_id'])
 
-    def target_reshape(self, boxes, labels):
-        center_x, center_y = (boxes[:, 2] + boxes[:, 0]) / 2., (boxes[:, 3] + boxes[:, 1]) / 2.
-        width, height = (boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1])
+    def target_reshape(self, boxes, labels, image_width, image_height):
+        center_x, center_y = (boxes[:, 2]/2. + boxes[:, 0])/image_width, (boxes[:, 3]/2. + boxes[:, 1])/image_height
+        width, height = boxes[:, 2]/image_width, boxes[:, 3]/image_height
 
         belong_cell_x = torch.tensor((center_x // CELL_SIZE), dtype=torch.long)
         belong_cell_y = torch.tensor((center_y // CELL_SIZE), dtype=torch.long)
