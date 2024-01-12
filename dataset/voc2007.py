@@ -5,6 +5,7 @@ import pathlib
 import cv2
 import os
 import numpy as np
+import xml.etree.ElementTree as ET
 
 CELL_SIZE = 1 / 7
 CELL_COUNT = 7
@@ -112,3 +113,56 @@ class Voc2007Dataset(dataset.Dataset):
             target[index_x, index_y, 10 + label - 1] = 1.
 
         return target
+
+class VOC2007DatasetV2(dataset.Dataset):
+    def __init__(self, root_path, train=False, transform=None, target_transform=None, device='cpu'):
+        super(VOC2007DatasetV2, self).__init__()
+        self.ROOT_PATH = root_path
+        self.train = train
+        self.transform = transform
+        self.target_transform = target_transform
+        self.device = device
+        self.IMAGESET_PATH = os.path.join(self.ROOT_PATH, 'VOCdevkit', 'VOC2007', 'JPEGImages')
+        self.LABELSET_PATH = os.path.join(self.ROOT_PATH, 'VOCdevkit', 'VOC2007', 'Annotations')
+        self._load_set_from_disk()
+
+    def __getitem__(self, index):
+        label_filename = self.image_labels_path_set[index]
+        image_label_path = os.path.join(self.LABELSET_PATH, label_filename)
+        label_dict = self._annotation_xml_2_dict(image_label_path)
+        image_path = os.path.join(self.IMAGESET_PATH, label_dict['filename'])
+        print('{}\n{}'.format(image_label_path, label_dict['boxes']))
+
+    def _load_set_from_disk(self):
+        self.image_filenames_set = os.listdir(self.IMAGESET_PATH)
+        self.IMAGE_COUNT = len(self.image_filenames_set)
+        self.image_labels_path_set = os.listdir(self.LABELSET_PATH)
+
+    def _annotation_xml_2_dict(self, xml_path):
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+        # annotation = root.find('annotation')
+        label_attr = {}
+        boxes = []
+        for obj in root:
+            if obj.tag == 'filename':
+                label_attr['filename'] = obj.text
+            if obj.tag == 'object':
+                bndbox = obj.find('bndbox')
+                box = [bndbox.find('xmin').text,
+                              bndbox.find('ymin').text,
+                              bndbox.find('xmax').text,
+                              bndbox.find('ymax').text,
+                              obj.find('name').text,
+                              obj.find('difficult').text,
+                              ]
+                boxes.append(box)
+        label_attr['boxes'] = boxes
+        return label_attr
+
+
+if __name__ == '__main__':
+    voc2007_dataset = VOC2007DatasetV2(root_path='D:\\image\\datasets\\VOC2007\\VOCtrainval_06-Nov-2007')
+    voc2007_dataset.__getitem__(1)
+
+
