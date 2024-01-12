@@ -55,7 +55,7 @@ class YoloNet(torch.nn.Module):
                                        kernel_size=3, stride=1, padding='same', padding_mode='zeros')
         self.conv5_4 = torch.nn.Conv2d(in_channels=1024, out_channels=1024,
                                        kernel_size=3, stride=1, padding='same', padding_mode='zeros')
-        self.maxpool5 = torch.nn.MaxPool2d(kernel_size=2)
+        self.conv5_5 = torch.nn.Conv2d(in_channels=1024, out_channels=1024, kernel_size=3, stride=2, padding=1)
 
         # 6
         self.conv6_0 = torch.nn.Conv2d(in_channels=1024, out_channels=1024,
@@ -71,15 +71,12 @@ class YoloNet(torch.nn.Module):
         # self.weights_init()
 
     def forward(self, x):
-        N = x.size()[0]
-        stds = []
+        N = x.shape[0]
         # 1
         x = self.maxpool1(self.leakyrelu(self.conv1_0(x)))
-        # stds.append(x.std())
 
         # 2
         x = self.maxpool2(self.leakyrelu(self.conv2_0(x)))
-        # stds.append(x.std())
 
         # 3
         x = self.leakyrelu(self.conv3_0(x))
@@ -87,7 +84,6 @@ class YoloNet(torch.nn.Module):
         x = self.leakyrelu(self.conv3_2(x))
         x = self.leakyrelu(self.conv3_3(x))
         x = self.maxpool2(x)
-        # stds.append(x.std())
 
         # 4
         x = self.leakyrelu(self.conv4_0(x))
@@ -101,7 +97,6 @@ class YoloNet(torch.nn.Module):
         x = self.leakyrelu(self.conv4_8(x))
         x = self.leakyrelu(self.conv4_9(x))
         x = self.maxpool2(x)
-        # stds.append(x.std())
 
         # 5
         x = self.leakyrelu(self.conv5_0(x))
@@ -109,13 +104,11 @@ class YoloNet(torch.nn.Module):
         x = self.leakyrelu(self.conv5_2(x))
         x = self.leakyrelu(self.conv5_3(x))
         x = self.leakyrelu(self.conv5_4(x))
-        x = self.maxpool2(x)
-        # stds.append(x.std())
+        x = self.leakyrelu(self.conv5_5(x))
 
         # 6
         x = self.leakyrelu(self.conv6_0(x))
         x = self.leakyrelu(self.conv6_1(x))
-        # stds.append(x.std())
 
         # 7 fc
         x = self.fc7_0(nn.Flatten()(x))
@@ -124,7 +117,6 @@ class YoloNet(torch.nn.Module):
         # connected layer prevents co-adaptation between layers
 
         x = self.dropout7(x)
-        # stds.append(x.std())
         x = self.fc7_1(x).reshape(N, 7, 7, 30)
         x = torch.nn.Sigmoid()(x)
         return x
