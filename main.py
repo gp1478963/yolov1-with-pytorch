@@ -22,12 +22,47 @@ if torch_directml.is_available():
 else:
     device = 'cpu'
 
+# dataset_obj = voc2007.Voc2007Dataset(
+#     PASCAL_VOC='D:\\image\\datasets\\VOC2007\\PASCAL_VOC',
+#     VOCtrainval='D:\\image\\datasets\\voc2007\\VOCtrainval_06-Nov-2007',
+#     transform=dataset_transforms,
+#     target_transform=target_dataset_transforms_l, device=device)
 
-dataset_obj = voc2007.Voc2007Dataset(
-    PASCAL_VOC='D:\\image\\datasets\\VOC2007\\PASCAL_VOC',
-    VOCtrainval='D:\\image\\datasets\\voc2007\\VOCtrainval_06-Nov-2007',
-    transform=dataset_transforms,
-    target_transform=target_dataset_transforms_l, device=device)
+
+CLASS_IERS = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
+              "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
+
+
+class TargetTransformL:
+    def __init__(self, CELL_COUNT, class_num, prior_box_num):
+        self.CELL_COUNT = CELL_COUNT
+        self.CELL_SIZE = 1 / self.CELL_COUNT
+        self.class_num = class_num
+        self.prior_box_num = prior_box_num
+
+    def __call__(self, label):
+        target = torch.zeros((self.CELL_COUNT, self.CELL_COUNT, self.prior_box_num * 5 + self.class_num))
+        for item in label:
+            box, classier, _ = item
+            center_x, center_y = (box[0] + box[2]) * .5, (box[1] + box[3]) * .5
+            belong_grid_x, belong_grid_y = center_x // self.CELL_COUNT, center_y // self.CELL_COUNT
+            if target[belong_grid_x, belong_grid_y, 4] is not 0:
+                dep = target[belong_grid_x, belong_grid_y]
+                dep[:5] = center_x, center_y, box[2], box[3], 1
+                dep[5:10] = dep[:5]
+                dep[CLASS_IERS.index(classier)] = 1
+        return target
+
+
+transform_v2 = [image_target_transforms.ImageResize(448, 448),
+                image_target_transforms.ImageNormalizeV2()]
+train_val_data_set = voc2007.VOC2007DatasetV2(
+    root_path='D:\\image\\datasets\\VOC2007\\VOCtrainval_06-Nov-2007',
+    transform=transform_v2,
+    target_transform=TargetTransformL(CELL_COUNT=7, class_num=20, prior_box_num=2),
+    train=True,
+    device=device
+)
 
 dataset_obj_test = voc2007.Voc2007Dataset(
     PASCAL_VOC='D:\\image\\datasets\\voc2007\\PASCAL_VOC',
@@ -37,7 +72,7 @@ dataset_obj_test = voc2007.Voc2007Dataset(
 
 PRETRAIN = True
 
-EPOCH_STAGE_LIST = [(2, 1e-2), (6, 1e-3), (40, 1e-4), (5, 1e-5)]
+EPOCH_STAGE_LIST = [(2, 1e-3), (15, 1e-3), (6, 1e-4), (5, 1e-5)]
 BATCH_SIZE = 1
 
 USE_RESNET = True
@@ -57,7 +92,7 @@ else:
 
 evaluate_obj = yolov1_loss.YoloV1Loss(device=device).to(device)
 optimum = torch.optim.SGD(yolo_model.parameters(), lr=0.0001, momentum=0.9, weight_decay=0.0005)
-dataloader = DataLoader(dataset=dataset_obj, batch_size=BATCH_SIZE, shuffle=True)
+dataloader = DataLoader(dataset=train_val_data_set, batch_size=BATCH_SIZE, shuffle=True)
 
 dataloader_eval = DataLoader(dataset=dataset_obj_test, batch_size=BATCH_SIZE, shuffle=False)
 yolov1_train.train_stage(yolo_model, dataloader, dataloader_eval, optimum, evaluate_obj, device, EPOCH_STAGE_LIST)

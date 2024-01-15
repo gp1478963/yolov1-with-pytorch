@@ -5,6 +5,7 @@ import pathlib
 import cv2
 import os
 import numpy as np
+import xml.etree.ElementTree as ET
 
 CELL_SIZE = 1 / 7
 CELL_COUNT = 7
@@ -57,9 +58,11 @@ class Voc2007Dataset(dataset.Dataset):
                 image, bounding_box, label = transform_fn(image, bounding_box, label)
 
         if self.train is True:
-            return image.to(self.device), self.target_reshape(bounding_box, label, width_original, height_original).to(self.device)
+            return image.to(self.device), self.target_reshape(bounding_box, label, width_original, height_original).to(
+                self.device)
         else:
-            return image.to(self.device), self.target_reshape(bounding_box, label, width_original, height_original).to(self.device), image_original
+            return image.to(self.device), self.target_reshape(bounding_box, label, width_original, height_original).to(
+                self.device), image_original
 
     def __len__(self):
         return len(self.images)
@@ -86,8 +89,9 @@ class Voc2007Dataset(dataset.Dataset):
                 self.labels[index].append(annotation['category_id'])
 
     def target_reshape(self, boxes, labels, image_width, image_height):
-        center_x, center_y = (boxes[:, 2]/2. + boxes[:, 0])/image_width, (boxes[:, 3]/2. + boxes[:, 1])/image_height
-        width, height = boxes[:, 2]/image_width, boxes[:, 3]/image_height
+        center_x, center_y = (boxes[:, 2] / 2. + boxes[:, 0]) / image_width, (
+                boxes[:, 3] / 2. + boxes[:, 1]) / image_height
+        width, height = boxes[:, 2] / image_width, boxes[:, 3] / image_height
 
         belong_cell_x = torch.tensor((center_x // CELL_SIZE), dtype=torch.long)
         belong_cell_y = torch.tensor((center_y // CELL_SIZE), dtype=torch.long)
@@ -112,3 +116,70 @@ class Voc2007Dataset(dataset.Dataset):
             target[index_x, index_y, 10 + label - 1] = 1.
 
         return target
+
+
+def _annotation_xml_2_dict(xml_path):
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    # annotation = root.find('annotation')
+    label_attr = {}
+    boxes = []
+    for obj in root:
+        if obj.tag == 'filename':
+            label_attr['filename'] = obj.text
+        if obj.tag == 'object':
+            bndbox = obj.find('bndbox')
+            box = [np.array([int(bndbox.find('xmin').text),
+                             int(bndbox.find('ymin').text),
+                             int(bndbox.find('xmax').text),
+                             int(bndbox.find('ymax').text) ], dtype=np.float32),
+                   obj.find('name').text,
+                   int(obj.find('difficult').text),
+                   ]
+            boxes.append(box)
+    label_attr['boxes'] = boxes
+    return label_attr
+
+
+class VOC2007DatasetV2(dataset.Dataset):
+    def __init__(self, root_path, train=False, transform=None, target_transform=None, device='cpu'):
+        super(VOC2007DatasetV2, self).__init__()
+        self.ROOT_PATH = root_path
+        self.train = train
+        self.transform = transform
+        self.target_transform = target_transform
+        self.device = device
+        self.IMAGESET_PATH = os.path.join(self.ROOT_PATH, 'VOCdevkit', 'VOC2007', 'JPEGImages')
+        self.LABELSET_PATH = os.path.join(self.ROOT_PATH, 'VOCdevkit', 'VOC2007', 'Annotations')
+        self._load_set_from_disk()
+
+    def __getitem__(self, index):
+        label_filename = self.image_labels_path_set[index]
+        image_label_path = os.path.join(self.LABELSET_PATH, label_filename)
+        label_dict = _annotation_xml_2_dict(image_label_path)
+        image_path = os.path.join(self.IMAGESET_PATH, label_dict['filename'])
+        image = cv2.imread(image_path)
+        if self.transform is not None:
+            for tr_ in self.transform:
+                (image,  label_dict['boxes']) = tr_(image, label_dict['boxes'])
+        target = None
+        if self.target_transform is not None:
+            target = self.target_transform(label_dict['boxes'])
+
+        return image, image_path, label_dict, target
+        # print('{}\n{}'.format(image, label_dict['boxes']))
+
+    def _load_set_from_disk(self):
+        self.image_filenames_set = os.listdir(self.IMAGESET_PATH)
+        self.IMAGE_COUNT = len(self.image_filenames_set)
+        self.image_labels_path_set = os.listdir(self.LABELSET_PATH)
+
+
+if __name__ == '__main__':
+    import image_target_transforms
+
+    transform = [image_target_transforms.ImageResize(448, 448),
+                 image_target_transforms.ImageNormalizeV2()]
+    voc2007_dataset = VOC2007DatasetV2(root_path='D:\\image\\datasets\\VOC2007\\VOCtrainval_06-Nov-2007'
+                                       , transform=transform)
+    voc2007_dataset.__getitem__(0)
