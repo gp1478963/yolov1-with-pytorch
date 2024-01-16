@@ -17,7 +17,7 @@ def train_im(model, train_loader, test_loader, optimizer, criterion, device, epo
         model.train()
         loss_list = []
         index = 0
-        for image, target in train_loader:
+        for image, _, _, target in train_loader:
             index += 1
             output = model.forward(image)
             class_loss, confidence_loss, coordance_los, total_loss = criterion.forward(output, target)

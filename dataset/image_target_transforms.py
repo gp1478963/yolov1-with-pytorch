@@ -36,9 +36,18 @@ class ImageResize(object):
         self.width, self.height = width, height
 
     def __call__(self, image, label=None):
-        cv2.resize(image, (self.width, self.height), interpolation=cv2.INTER_AREA)
+        image = cv2.resize(image, (self.width, self.height), interpolation=cv2.INTER_AREA)
         if label is not None:
             for bndbox in label:
                 bndbox[0][:4:2] = (bndbox[0][:4:2]) / self.width
                 bndbox[0][1:4:2] = (bndbox[0][1:4:2]) / self.height
+        return image, label
+
+
+class Convert2TorchTensor:
+    def __call__(self, image, label):
+        if isinstance(image, np.ndarray):
+            image = torch.from_numpy(image).permute(2, 0, 1).contiguous()
+        elif isinstance(image, torch.Tensor):
+            image = image.permute(2, 0, 1).contiguous()
         return image, label

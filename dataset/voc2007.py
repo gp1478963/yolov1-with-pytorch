@@ -174,6 +174,9 @@ class VOC2007DatasetV2(dataset.Dataset):
         self.IMAGE_COUNT = len(self.image_filenames_set)
         self.image_labels_path_set = os.listdir(self.LABELSET_PATH)
 
+    def __len__(self):
+        return self.IMAGE_COUNT
+
 
 if __name__ == '__main__':
     import image_target_transforms

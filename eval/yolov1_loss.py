@@ -31,9 +31,7 @@ class YoloV1Loss(nn.Module):
                                                                             coord_mask, coord_confidence, classic_mask
                                                                             ):
             pred_box = torch.hstack((pred_coord[:4], pred_coord[5:9])).reshape(-1, 4).clone()
-            pred_box[:, 2:] = torch.square(pred_box[:, 2:])
             target_box = target_coord[:4].reshape(-1, 4).clone()
-            target_box[:, 2:] = torch.square(target_box[:, 2:])
             pred_box[:, :2] = pred_box[:, :2] * self.CELL_SILE - pred_box[:, 2:4] / 2
             pred_box[:, 2:] = pred_box[:, :2] * self.CELL_SILE + pred_box[:, 2:4] / 2
             target_box[:, :2] = target_box[:, :2] * self.CELL_SILE - target_box[:, 2:4] / 2
@@ -52,8 +50,8 @@ class YoloV1Loss(nn.Module):
 
         coordence_center_loss = nn.functional.mse_loss(calculate_boxes[:, :2], calculate_boxes_target[:, :2], reduction='sum') * self.lambda_coord
 
-        coordence_wh_loss = nn.functional.mse_loss(calculate_boxes[:, 2:4],
-                                                   calculate_boxes_target[:, 2:4], reduction='sum') * self.lambda_coord
+        coordence_wh_loss = nn.functional.mse_loss(torch.square(calculate_boxes[:, 2:4]),
+                                                   torch.square(calculate_boxes_target[:, 2:4]), reduction='sum') * self.lambda_coord
 
         confidence_loss = nn.functional.mse_loss(preds_coord[coord_confidence], targets_coord[coord_confidence], reduction='sum')
         classier_loss = nn.functional.mse_loss(preds_coord[:, 10:], targets_coord[:, 10:], reduction='sum')
